@@ -2,7 +2,6 @@ import streamlit as st
 import joblib
 import numpy as np
 import pandas as pd
-import shap
 import matplotlib.pyplot as plt
 
 # 加载模型
@@ -111,13 +110,5 @@ if st.button("Predict"):
 
     st.write(advice)
 
-    # 计算SHAP值并显示力图
-    explainer = shap.TreeExplainer(model)
-    shap_values = explainer.shap_values(pd.DataFrame([feature_values], columns=self.feature_names))
-
-    shap.force_plot(explainer.expected_value, shap_values[0], pd.DataFrame([feature_values], columns=self.feature_names), matplotlib=True)
-    plt.savefig("shap_force_plot.png", bbox_inches='tight', dpi=300)
-
-    st.image("shap_force_plot.png")
 
 # 运行Streamlit命令生成网页应用
