@@ -2,39 +2,40 @@ import streamlit as st
 import joblib
 import numpy as np
 import pandas as pd
+import shap
 import matplotlib.pyplot as plt
 
 # 加载模型
 model = joblib.load('XGBoost.pkl')
 
-# 定义特征的选项
-cp_options = {
+# 定义特征的选项 （多分类变量）
+cp_options = {  #胸痛类型
     1: 'Typical angina (1)',
     2: 'Atypical angina (2)',
     3: 'Non-anginal pain (3)',
     4: 'Asymptomatic (4)'
-}
+} 
 
-restecg_options = {
+restecg_options = {  #静息心电图
     0: 'Normal (0)',
     1: 'ST-T wave abnormality (1)',
     2: 'Left ventricular hypertrophy (2)'
 }
 
-slope_options = {
+slope_options = {   #运动峰ST段的坡度
     1: 'Upsloping (1)',
     2: 'Flat (2)',
     3: 'Downsloping (3)'
 }
 
-thal_options = {
+thal_options = {  
     3: 'Normal (3)',
     6: 'Fixed defect (6)',
     7: 'Reversible defect (7)'
 }
 
 # Streamlit的用户界面
-st.title("Heart Disease Predictor")
+st.title("Heart Disease Predictor") #标题
 
 # age: 数值输入
 age = st.number_input("Age:", min_value=1, max_value=120, value=50)
@@ -42,34 +43,34 @@ age = st.number_input("Age:", min_value=1, max_value=120, value=50)
 # sex: 分类选择
 sex = st.selectbox("Sex (0=Female, 1=Male):", options=[0, 1], format_func=lambda x: 'Female (0)' if x == 0 else 'Male (1)')
 
-# cp: 分类选择
+# cp(胸痛类型): 分类选择   注:多分类的上述已定义
 cp = st.selectbox("Chest pain type:", options=list(cp_options.keys()), format_func=lambda x: cp_options[x])
 
-# trestbps: 数值输入
+# trestbps(静息血压): 数值输入
 trestbps = st.number_input("Resting blood pressure (trestbps):", min_value=50, max_value=200, value=120)
 
-# chol: 数值输入
+# chol(血清胆固醇): 数值输入
 chol = st.number_input("Serum cholestoral in mg/dl (chol):", min_value=100, max_value=600, value=200)
 
-# fbs: 分类选择
+# fbs(空腹血糖): 分类选择
 fbs = st.selectbox("Fasting blood sugar > 120 mg/dl (fbs):", options=[0, 1], format_func=lambda x: 'False (0)' if x == 0 else 'True (1)')
 
-# restecg: 分类选择
+# restecg(静息心电图): 分类选择
 restecg = st.selectbox("Resting electrocardiographic results:", options=list(restecg_options.keys()), format_func=lambda x: restecg_options[x])
 
-# thalach: 数值输入
+# thalach(maximum heart rate achieved 达到最大心率): 数值输入
 thalach = st.number_input("Maximum heart rate achieved (thalach):", min_value=50, max_value=250, value=150)
 
-# exang: 分类选择
+# exang(运动性心绞痛): 分类选择
 exang = st.selectbox("Exercise induced angina (exang):", options=[0, 1], format_func=lambda x: 'No (0)' if x == 0 else 'Yes (1)')
 
-# oldpeak: 数值输入
+# oldpeak: 数值输入 运动相对于休息引起的ST段压低-ST depression induced by exercise relative to rest
 oldpeak = st.number_input("ST depression induced by exercise relative to rest (oldpeak):", min_value=0.0, max_value=10.0, value=1.0)
 
-# slope: 分类选择
+# slope(运动峰ST段的坡度): 分类选择
 slope = st.selectbox("Slope of the peak exercise ST segment (slope):", options=list(slope_options.keys()), format_func=lambda x: slope_options[x])
 
-# ca: 数值输入
+# ca: 数值输入(用荧光染色的主要血管数-number of major vessels(0-3) colored by flourosopy)
 ca = st.number_input("Number of major vessels colored by fluoroscopy (ca):", min_value=0, max_value=4, value=0)
 
 # thal: 分类选择
@@ -79,9 +80,9 @@ thal = st.selectbox("Thal (thal):", options=list(thal_options.keys()), format_fu
 feature_values = [age, sex, cp, trestbps, chol, fbs, restecg, thalach, exang, oldpeak, slope, ca, thal]
 features = np.array([feature_values])
 
-if st.button("Predict"):
-    # 预测类别和概率
-    predicted_class = model.predict(features)[0]
+if st.button("Predict"):  #点击button: Predict键
+    # 预测类别和概率（最最主要输出的两种结果-类别和概率）
+    predicted_class = model.predict(features)[0]  # model即加载的XGBoost模型
     predicted_proba = model.predict_proba(features)[0]
 
     # 显示预测结果
@@ -108,7 +109,15 @@ if st.button("Predict"):
             "并在有任何不适症状时及时就医。"
         )
 
-    st.write(advice)
+    st.write(advice) #输出建议
 
+    # 计算SHAP值并显示力图
+    explainer = shap.TreeExplainer(model)
+    shap_values = explainer.shap_values(pd.DataFrame([feature_values], columns=self.feature_names))
+
+    shap.force_plot(explainer.expected_value, shap_values[0], pd.DataFrame([feature_values], columns=self.feature_names), matplotlib=True)
+    plt.savefig("shap_force_plot.png", bbox_inches='tight', dpi=300)
+
+    st.image("shap_force_plot.png")
 
 # 运行Streamlit命令生成网页应用
